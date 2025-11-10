@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import apiClient from "@/lib/api";
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -52,18 +53,58 @@ function LoginPage() {
     }
 
     setIsLoading(true);
-
-    // Simulate API call
+    
+    console.log("Attempting login...");
+    console.log("Request payload:", { username: formData.username, passwordLength: formData.password.length });
+    
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      console.log("Login attempt:", formData);
-      // Store authentication state (in real app, you'd use proper auth)
-      localStorage.setItem("isAuthenticated", "true");
-      localStorage.setItem("user", JSON.stringify({ username: formData.username }));
-      navigate("/dashboard");
+      const response = await apiClient.post("/auth/login", {
+        username: formData.username,
+        password: formData.password,
+      });
+
+      console.log("Response status:", response.status);
+      console.log("Response data:", response.data);
+      
+      const data = response.data || {};
+      const token = data.token || data.accessToken || null;
+      const refreshToken = data.refreshToken || null;
+
+      if (token) {
+        localStorage.setItem("accessToken", token);
+      }
+      if (refreshToken) {
+        localStorage.setItem("refreshToken", refreshToken);
+      }
+
+      navigate("/admin/crm/dashboard");
     } catch (error) {
-      console.error("Login error:", error);
-      alert("Login failed. Please try again.");
+      console.error("Login error details:", {
+        name: error.name,
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      
+      let errorMessage = "Login failed. ";
+      
+      if (error.response) {
+        // Server responded with error status
+        const serverError = error.response.data?.message || error.response.data?.error || error.response.data || `HTTP ${error.response.status}`;
+        errorMessage += typeof serverError === 'string' && serverError.length < 200 ? serverError : `Server error (${error.response.status})`;
+      } else if (error.request) {
+        // Request made but no response
+        errorMessage += "Cannot connect to server. ";
+        errorMessage += "Please check:\n";
+        errorMessage += "1. The backend server is running\n";
+        errorMessage += "2. The IP address and port are correct\n";
+        errorMessage += "3. Network connectivity";
+      } else {
+        // Error setting up request
+        errorMessage += error.message || "Please check your credentials and try again.";
+      }
+      
+      alert(errorMessage);
     } finally {
       setIsLoading(false);
     }

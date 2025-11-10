@@ -1,27 +1,40 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import apiClient from "@/lib/api";
 
 function DashboardPage() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // Check if user is authenticated
-    const isAuthenticated = localStorage.getItem("isAuthenticated");
-    const userData = localStorage.getItem("user");
-
-    if (!isAuthenticated || !userData) {
-      navigate("/login");
+    // Check if token exists
+    const accessToken = localStorage.getItem("accessToken");
+    if (!accessToken) {
+      navigate("/admin/crm/login");
       return;
     }
 
-    setUser(JSON.parse(userData));
+    // Fetch user data from API
+    const fetchUserData = async () => {
+      try {
+        const response = await apiClient.get("/auth/me");
+        const userData = response.data?.user || response.data;
+        if (userData) {
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        navigate("/admin/crm/login");
+      }
+    };
+
+    fetchUserData();
   }, [navigate]);
 
   const handleLogout = () => {
-    localStorage.removeItem("isAuthenticated");
-    localStorage.removeItem("user");
-    navigate("/login");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    navigate("/admin/crm/login");
   };
 
   if (!user) {
@@ -91,9 +104,9 @@ function DashboardPage() {
           <h3 className="text-xl font-semibold text-white mb-4">
             Quick Actions
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <button
-              onClick={() => navigate("/customers")}
+              onClick={() => navigate("/admin/crm/customers")}
               className="flex items-center justify-center p-4 bg-white/10 hover:bg-white/20 rounded-lg transition-colors duration-200"
             >
               <svg
@@ -111,7 +124,10 @@ function DashboardPage() {
               </svg>
               <span className="text-white">View Customers</span>
             </button>
-            <button className="flex items-center justify-center p-4 bg-white/10 hover:bg-white/20 rounded-lg transition-colors duration-200">
+            <button
+              onClick={() => navigate("/admin/crm/messages")}
+              className="flex items-center justify-center p-4 bg-white/10 hover:bg-white/20 rounded-lg transition-colors duration-200"
+            >
               <svg
                 className="w-5 h-5 text-white mr-2"
                 fill="none"
@@ -122,12 +138,15 @@ function DashboardPage() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14"
                 />
               </svg>
-              <span className="text-white">New Order</span>
+              <span className="text-white">New Message</span>
             </button>
-            <button className="flex items-center justify-center p-4 bg-white/10 hover:bg-white/20 rounded-lg transition-colors duration-200">
+            <button
+              onClick={() => navigate("/admin/crm/profile")}
+              className="flex items-center justify-center p-4 bg-white/10 hover:bg-white/20 rounded-lg transition-colors duration-200"
+            >
               <svg
                 className="w-5 h-5 text-white mr-2"
                 fill="none"
@@ -138,33 +157,74 @@ function DashboardPage() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                 />
               </svg>
-              <span className="text-white">View Reports</span>
+              <span className="text-white">My Profile</span>
             </button>
-            <button className="flex items-center justify-center p-4 bg-white/10 hover:bg-white/20 rounded-lg transition-colors duration-200">
-              <svg
-                className="w-5 h-5 text-white mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            {user?.role === "admin" && (
+              <>
+                <button
+                  onClick={() => navigate("/admin/crm/users")}
+                  className="flex items-center justify-center p-4 bg-white/10 hover:bg-white/20 rounded-lg transition-colors duration-200"
+                >
+                  <svg
+                    className="w-5 h-5 text-white mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+                    />
+                  </svg>
+                  <span className="text-white">Users</span>
+                </button>
+                <button
+                  onClick={() => navigate("/admin/crm/departments")}
+                  className="flex items-center justify-center p-4 bg-white/10 hover:bg-white/20 rounded-lg transition-colors duration-200"
+                >
+                  <svg
+                    className="w-5 h-5 text-white mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                    />
+                  </svg>
+                  <span className="text-white">Departments</span>
+                </button>
+              </>
+            )}
+            {user?.role === "manager" && (
+              <button
+                onClick={() => navigate("/admin/crm/my-departments")}
+                className="flex items-center justify-center p-4 bg-white/10 hover:bg-white/20 rounded-lg transition-colors duration-200"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-              </svg>
-              <span className="text-white">Settings</span>
-            </button>
+                <svg
+                  className="w-5 h-5 text-white mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                  />
+                </svg>
+                <span className="text-white">My Department</span>
+              </button>
+            )}
           </div>
         </div>
 

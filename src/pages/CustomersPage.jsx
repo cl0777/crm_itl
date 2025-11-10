@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
+import apiClient from "@/lib/api";
 
 function CustomersPage() {
   const navigate = useNavigate();
@@ -25,6 +26,8 @@ function CustomersPage() {
   const [selectedSheet, setSelectedSheet] = useState("");
   const [excelHeaders, setExcelHeaders] = useState([]);
   const [excelRows, setExcelRows] = useState([]);
+  const [importData, setImportData] = useState(null);
+  const [isSubmittingImport, setIsSubmittingImport] = useState(false);
 
   // Edit modal state
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -37,10 +40,8 @@ function CustomersPage() {
     address1: "",
     address2: "",
     address3: "",
-    cityCode: "",
-    cityName: "",
-    countryCode: "",
-    countryName: "",
+    city: "",
+    country: "",
     email: "",
     phone1: "",
     phone2: "",
@@ -53,128 +54,78 @@ function CustomersPage() {
   const [isDeleteEntering, setIsDeleteEntering] = useState(false);
   const [isDeleteClosing, setIsDeleteClosing] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [formData, setFormData] = useState({
     partyName: "",
     shortname: "",
     address1: "",
     address2: "",
     address3: "",
-    cityCode: "",
-    cityName: "",
-    countryCode: "",
-    countryName: "",
+    city: "",
+    country: "",
     email: "",
     phone1: "",
     phone2: "",
     status: "Active",
-    addedBy: "",
   });
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      const customerData = [
-        {
-          id: 1,
-          partyName: "Tech Solutions Inc",
-          shortname: "TSI",
-          address1: "123 Business Park",
-          address2: "Suite 100",
-          address3: "Floor 2",
-          cityCode: "NYC",
-          cityName: "New York",
-          countryCode: "US",
-          countryName: "United States",
-          email: "contact@techsolutions.com",
-          phone1: "+1-555-0123",
-          phone2: "+1-555-0124",
-          status: "Active",
-          addedBy: "System",
-        },
-        {
-          id: 2,
-          partyName: "Global Enterprises Ltd",
-          shortname: "GEL",
-          address1: "456 Corporate Plaza",
-          address2: "Building A",
-          address3: "Unit 205",
-          cityCode: "LON",
-          cityName: "London",
-          countryCode: "GB",
-          countryName: "United Kingdom",
-          email: "info@globalenterprises.co.uk",
-          phone1: "+44-20-7946-0958",
-          phone2: "+44-20-7946-0959",
-          status: "Active",
-          addedBy: "System",
-        },
-        {
-          id: 3,
-          partyName: "Innovation Hub GmbH",
-          shortname: "IHG",
-          address1: "789 Innovation Street",
-          address2: "Tech Center",
-          address3: "Block B",
-          cityCode: "BER",
-          cityName: "Berlin",
-          countryCode: "DE",
-          countryName: "Germany",
-          email: "hello@innovationhub.de",
-          phone1: "+49-30-12345678",
-          phone2: "+49-30-12345679",
-          status: "Inactive",
-          addedBy: "System",
-        },
-        {
-          id: 4,
-          partyName: "Digital Dynamics Corp",
-          shortname: "DDC",
-          address1: "321 Digital Avenue",
-          address2: "Office Complex",
-          address3: "Tower 1",
-          cityCode: "TOK",
-          cityName: "Tokyo",
-          countryCode: "JP",
-          countryName: "Japan",
-          email: "support@digitaldynamics.jp",
-          phone1: "+81-3-1234-5678",
-          phone2: "+81-3-1234-5679",
-          status: "Active",
-          addedBy: "System",
-        },
-        {
-          id: 5,
-          partyName: "Future Systems Pty Ltd",
-          shortname: "FSL",
-          address1: "654 Future Lane",
-          address2: "Business District",
-          address3: "Level 15",
-          cityCode: "SYD",
-          cityName: "Sydney",
-          countryCode: "AU",
-          countryName: "Australia",
-          email: "contact@futuresystems.com.au",
-          phone1: "+61-2-9876-5432",
-          phone2: "+61-2-9876-5433",
-          status: "Pending",
-          addedBy: "System",
-        },
-      ];
-      setCustomers(customerData);
-      setFilteredCustomers(customerData);
-      setIsLoading(false);
-    }, 1000);
+    // Fetch current user data from API
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await apiClient.get("/auth/me");
+        const userData = response.data?.user || response.data;
+        if (userData) {
+          setCurrentUser(userData);
+        }
+      } catch (error) {
+        console.error("Error fetching current user:", error);
+      }
+    };
+
+    // Fetch customers from API
+    const fetchCustomers = async () => {
+      try {
+        setIsLoading(true);
+        const response = await apiClient.get("/customers");
+        const customerData = response.data?.customers || response.data || [];
+        setCustomers(customerData);
+        setFilteredCustomers(customerData);
+      } catch (error) {
+        console.error("Error fetching customers:", error);
+        alert("Failed to fetch customers. Please try again.");
+        // Set empty arrays on error
+        setCustomers([]);
+        setFilteredCustomers([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCurrentUser();
+    fetchCustomers();
   }, []);
 
   // Filter and sort customers
   useEffect(() => {
     let filtered = customers.filter((customer) => {
+      const citySearch = (
+        customer.city ||
+        customer.cityName ||
+        ""
+      ).toLowerCase();
+      const countrySearch = (
+        customer.country ||
+        customer.countryName ||
+        ""
+      ).toLowerCase();
+
       const matchesSearch =
         customer.partyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.shortname.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.cityName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.countryName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        citySearch.includes(searchTerm.toLowerCase()) ||
+        countrySearch.includes(searchTerm.toLowerCase()) ||
         customer.phone1.includes(searchTerm) ||
         customer.phone2?.includes(searchTerm) ||
         (customer.addedBy || "")
@@ -184,7 +135,8 @@ function CustomersPage() {
       const matchesStatus =
         statusFilter === "All" || customer.status === statusFilter;
       const matchesCountry =
-        countryFilter === "All" || customer.countryName === countryFilter;
+        countryFilter === "All" ||
+        countrySearch === countryFilter.toLowerCase();
 
       return matchesSearch && matchesStatus && matchesCountry;
     });
@@ -193,6 +145,15 @@ function CustomersPage() {
     filtered.sort((a, b) => {
       let aValue = a[sortBy];
       let bValue = b[sortBy];
+
+      // Handle backward compatibility for city/country fields
+      if (sortBy === "city") {
+        aValue = a.city || a.cityName || "";
+        bValue = b.city || b.cityName || "";
+      } else if (sortBy === "country") {
+        aValue = a.country || a.countryName || "";
+        bValue = b.country || b.countryName || "";
+      }
 
       if (typeof aValue === "string") {
         aValue = aValue.toLowerCase();
@@ -210,9 +171,9 @@ function CustomersPage() {
   }, [customers, searchTerm, statusFilter, countryFilter, sortBy, sortOrder]);
 
   const handleLogout = () => {
-    localStorage.removeItem("isAuthenticated");
-    localStorage.removeItem("user");
-    navigate("/login");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    navigate("/admin/crm/login");
   };
 
   const handleImportClick = () => {
@@ -239,9 +200,13 @@ function CustomersPage() {
           const headers = rows[0] || [];
           setExcelHeaders(headers);
           setExcelRows(rows.slice(1));
+
+          // Store the file data for API upload
+          setImportData(data);
         } else {
           setExcelHeaders([]);
           setExcelRows([]);
+          setImportData(null);
         }
         setIsImporting(false);
         // Open preview modal with animation
@@ -266,7 +231,182 @@ function CustomersPage() {
     setTimeout(() => {
       setIsImportOpen(false);
       setIsImportClosing(false);
+      setImportData(null);
     }, 200);
+  };
+
+  const handleExportExcel = () => {
+    if (filteredCustomers.length === 0) {
+      alert("No customers to export");
+      return;
+    }
+
+    // Prepare data for export
+    const exportData = filteredCustomers.map((customer) => ({
+      "Party Name": customer.partyName,
+      Shortname: customer.shortname || "",
+      "Address 1": customer.address1,
+      "Address 2": customer.address2 || "",
+      "Address 3": customer.address3 || "",
+      City: customer.city || customer.cityName || "",
+      Country: customer.country || customer.countryName || "",
+      Email: customer.email,
+      "Phone 1": customer.phone1,
+      "Phone 2": customer.phone2 || "",
+      Status: customer.status,
+      "Added By": customer.addedBy || "",
+    }));
+
+    // Create workbook
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Customers");
+
+    // Auto-size columns
+    const maxWidth = 30;
+    const cols = [];
+    for (let i = 0; i < exportData.length; i++) {
+      const row = exportData[i];
+      Object.keys(row).forEach((key, colIndex) => {
+        if (!cols[colIndex]) {
+          cols[colIndex] = { wch: key.length };
+        }
+        const cellValue = row[key] ? String(row[key]) : "";
+        if (cellValue.length > cols[colIndex].wch) {
+          cols[colIndex].wch = Math.min(cellValue.length, maxWidth);
+        }
+      });
+    }
+    worksheet["!cols"] = cols;
+
+    // Generate filename with current date
+    const date = new Date().toISOString().split("T")[0];
+    const filename = `customers_${date}.xlsx`;
+
+    // Download file
+    XLSX.writeFile(workbook, filename);
+  };
+
+  const handleExportCSV = () => {
+    if (filteredCustomers.length === 0) {
+      alert("No customers to export");
+      return;
+    }
+
+    // Prepare data for export
+    const exportData = filteredCustomers.map((customer) => ({
+      "Party Name": customer.partyName,
+      Shortname: customer.shortname || "",
+      "Address 1": customer.address1,
+      "Address 2": customer.address2 || "",
+      "Address 3": customer.address3 || "",
+      City: customer.city || customer.cityName || "",
+      Country: customer.country || customer.countryName || "",
+      Email: customer.email,
+      "Phone 1": customer.phone1,
+      "Phone 2": customer.phone2 || "",
+      Status: customer.status,
+      "Added By": customer.addedBy || "",
+    }));
+
+    // Convert to CSV
+    const headers = Object.keys(exportData[0] || {});
+    const csvRows = [];
+
+    // Add headers
+    csvRows.push(headers.join(","));
+
+    // Add data rows
+    exportData.forEach((row) => {
+      const values = headers.map((header) => {
+        const value = row[header] || "";
+        // Escape commas and quotes in CSV
+        if (
+          typeof value === "string" &&
+          (value.includes(",") || value.includes('"'))
+        ) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      });
+      csvRows.push(values.join(","));
+    });
+
+    // Create CSV content
+    const csvContent = csvRows.join("\n");
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute("href", url);
+    const date = new Date().toISOString().split("T")[0];
+    link.setAttribute("download", `customers_${date}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImportSubmit = async () => {
+    if (!importData || !excelRows || excelRows.length === 0) {
+      alert("No data to import");
+      return;
+    }
+
+    try {
+      setIsSubmittingImport(true);
+
+      // Convert the data to a File/Blob for FormData
+      const blob = new Blob([importData], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const file = new File([blob], importFileName, {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append("file", file);
+
+      // Send to API
+      // Don't set Content-Type header - let axios set it with boundary for multipart/form-data
+      const response = await apiClient.post("/customers/import", formData);
+
+      // Success - fetch updated customers list
+      const fetchCustomers = async () => {
+        try {
+          const response = await apiClient.get("/customers");
+          const customerData = response.data?.customers || response.data || [];
+          setCustomers(customerData);
+          setFilteredCustomers(customerData);
+        } catch (error) {
+          console.error("Error fetching customers:", error);
+        }
+      };
+
+      await fetchCustomers();
+
+      // Close modal and reset
+      closeImportModal();
+      setImportData(null);
+
+      alert(
+        `Successfully imported ${
+          response.data?.count || excelRows.length
+        } customers`
+      );
+    } catch (error) {
+      console.error("Error importing customers:", error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        "Failed to import customers. Please check the file format and try again.";
+      alert(errorMessage);
+    } finally {
+      setIsSubmittingImport(false);
+    }
   };
 
   const openAddModal = () => {
@@ -291,10 +431,8 @@ function CustomersPage() {
       address1: customer.address1 || "",
       address2: customer.address2 || "",
       address3: customer.address3 || "",
-      cityCode: customer.cityCode || "",
-      cityName: customer.cityName || "",
-      countryCode: customer.countryCode || "",
-      countryName: customer.countryName || "",
+      city: customer.city || customer.cityName || "",
+      country: customer.country || customer.countryName || "",
       email: customer.email || "",
       phone1: customer.phone1 || "",
       phone2: customer.phone2 || "",
@@ -315,15 +453,39 @@ function CustomersPage() {
     }, 200);
   };
 
-  const submitEdit = (e) => {
+  const submitEdit = async (e) => {
     e.preventDefault();
     if (editingId == null) return;
-    const updatedList = customers.map((c) =>
-      c.id === editingId ? { ...c, ...editData, id: editingId } : c
-    );
-    setCustomers(updatedList);
-    setFilteredCustomers(updatedList);
-    closeEditModal();
+
+    try {
+      // Prepare data matching API schema
+      const payload = {
+        partyName: editData.partyName,
+        shortname: editData.shortname,
+        address1: editData.address1,
+        ...(editData.address2 && { address2: editData.address2 }),
+        ...(editData.address3 && { address3: editData.address3 }),
+        city: editData.city,
+        country: editData.country,
+        email: editData.email,
+        phone1: editData.phone1,
+        ...(editData.phone2 && { phone2: editData.phone2 }),
+        status: editData.status,
+      };
+
+      await apiClient.patch(`/customers/${editingId}`, payload);
+
+      // Update the customer in the list
+      const updatedList = customers.map((c) =>
+        c.id === editingId ? { ...c, ...editData, id: editingId } : c
+      );
+      setCustomers(updatedList);
+      setFilteredCustomers(updatedList);
+      closeEditModal();
+    } catch (error) {
+      console.error("Error updating customer:", error);
+      alert("Failed to update customer. Please try again.");
+    }
   };
 
   const openDeleteModal = (customer) => {
@@ -342,12 +504,21 @@ function CustomersPage() {
     }, 200);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteTarget) return;
-    const updatedList = customers.filter((c) => c.id !== deleteTarget.id);
-    setCustomers(updatedList);
-    setFilteredCustomers(updatedList);
-    closeDeleteModal();
+
+    try {
+      await apiClient.delete(`/customers/${deleteTarget.id}`);
+
+      // Remove the customer from the list
+      const updatedList = customers.filter((c) => c.id !== deleteTarget.id);
+      setCustomers(updatedList);
+      setFilteredCustomers(updatedList);
+      closeDeleteModal();
+    } catch (error) {
+      console.error("Error deleting customer:", error);
+      alert("Failed to delete customer. Please try again.");
+    }
   };
 
   return (
@@ -358,7 +529,7 @@ function CustomersPage() {
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
               <button
-                onClick={() => navigate("/dashboard")}
+                onClick={() => navigate("/admin/crm/dashboard")}
                 className="mr-4 p-2 text-slate-300 hover:text-white transition-colors"
               >
                 <svg
@@ -419,6 +590,327 @@ function CustomersPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Edit Customer Modal */}
+        {isEditOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black/60"
+              onClick={closeEditModal}
+            ></div>
+            <div
+              className={`relative z-10 w-full max-w-3xl bg-slate-900/90 border border-white/20 rounded-2xl p-6 backdrop-blur-xl max-h-[80vh] overflow-y-auto transition-all duration-200 ease-out transform ${
+                isEditEntering ? "opacity-0 scale-90" : ""
+              } ${
+                isEditClosing ? "opacity-0 scale-90" : "opacity-100 scale-100"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold text-white">
+                  Edit Customer
+                </h3>
+                <button
+                  onClick={closeEditModal}
+                  className="text-slate-300 hover:text-white"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <form onSubmit={submitEdit}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm text-slate-300">Party Name</label>
+                    <input
+                      name="partyName"
+                      value={editData.partyName}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          partyName: e.target.value,
+                        })
+                      }
+                      required
+                      placeholder="e.g. Tech Solutions Inc"
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm text-slate-300">Shortname</label>
+                    <input
+                      name="shortname"
+                      value={editData.shortname}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          shortname: e.target.value,
+                        })
+                      }
+                      placeholder="e.g. TSI"
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm text-slate-300">Address 1</label>
+                    <input
+                      name="address1"
+                      value={editData.address1}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          address1: e.target.value,
+                        })
+                      }
+                      required
+                      placeholder="Street, number, area"
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm text-slate-300">Address 2</label>
+                    <input
+                      name="address2"
+                      value={editData.address2}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          address2: e.target.value,
+                        })
+                      }
+                      placeholder="Suite, building, unit (optional)"
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm text-slate-300">Address 3</label>
+                    <input
+                      name="address3"
+                      value={editData.address3}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          address3: e.target.value,
+                        })
+                      }
+                      placeholder="Floor, landmark (optional)"
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm text-slate-300">City</label>
+                    <input
+                      name="city"
+                      value={editData.city}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          city: e.target.value,
+                        })
+                      }
+                      required
+                      placeholder="e.g. New York"
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm text-slate-300">Country</label>
+                    <input
+                      name="country"
+                      value={editData.country}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          country: e.target.value,
+                        })
+                      }
+                      required
+                      placeholder="e.g. United States"
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm text-slate-300">Email</label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={editData.email}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          email: e.target.value,
+                        })
+                      }
+                      required
+                      placeholder="e.g. hello@company.com"
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm text-slate-300">Phone 1</label>
+                    <input
+                      name="phone1"
+                      value={editData.phone1}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          phone1: e.target.value,
+                        })
+                      }
+                      required
+                      placeholder="Primary phone"
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm text-slate-300">Phone 2</label>
+                    <input
+                      name="phone2"
+                      value={editData.phone2}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          phone2: e.target.value,
+                        })
+                      }
+                      placeholder="Secondary phone (optional)"
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm text-slate-300">Status</label>
+                    <select
+                      name="status"
+                      value={editData.status}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          status: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                    >
+                      <option className="bg-slate-800" value="Active">
+                        Active
+                      </option>
+                      <option className="bg-slate-800" value="Inactive">
+                        Inactive
+                      </option>
+                      <option className="bg-slate-800" value="Pending">
+                        Pending
+                      </option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm text-slate-300">Added By</label>
+                    <input
+                      name="addedBy"
+                      value={editData.addedBy}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          addedBy: e.target.value,
+                        })
+                      }
+                      placeholder="e.g. Admin"
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                    />
+                  </div>
+                </div>
+                <div className="mt-6 flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={closeEditModal}
+                    className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 border border-white/20"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {isDeleteOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black/60"
+              onClick={closeDeleteModal}
+            ></div>
+            <div
+              className={`relative z-10 w-full max-w-md bg-slate-900/90 border border-white/20 rounded-2xl p-6 backdrop-blur-xl transition-all duration-200 ease-out transform ${
+                isDeleteEntering ? "opacity-0 scale-90" : ""
+              } ${
+                isDeleteClosing ? "opacity-0 scale-90" : "opacity-100 scale-100"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-lg font-semibold text-white">
+                  Remove Customer
+                </h4>
+                <button
+                  onClick={closeDeleteModal}
+                  className="text-slate-300 hover:text-white"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-slate-300 text-sm">
+                Are you sure you want to remove{" "}
+                {deleteTarget ? (
+                  <span className="font-semibold text-white">
+                    {deleteTarget.partyName}
+                  </span>
+                ) : (
+                  "this customer"
+                )}
+                ? This action cannot be undone.
+              </p>
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={closeDeleteModal}
+                  className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 border border-white/20"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Page Header */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-white mb-2">
@@ -467,32 +959,56 @@ function CustomersPage() {
                 </button>
               </div>
               <form
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
-                  const nextId = customers.length
-                    ? Math.max(...customers.map((c) => c.id)) + 1
-                    : 1;
-                  const newCustomer = { id: nextId, ...formData };
-                  const updated = [...customers, newCustomer];
-                  setCustomers(updated);
-                  setFilteredCustomers(updated);
-                  setFormData({
-                    partyName: "",
-                    shortname: "",
-                    address1: "",
-                    address2: "",
-                    address3: "",
-                    cityCode: "",
-                    cityName: "",
-                    countryCode: "",
-                    countryName: "",
-                    email: "",
-                    phone1: "",
-                    phone2: "",
-                    status: "Active",
-                    addedBy: "",
-                  });
-                  closeAddModal();
+                  try {
+                    // Prepare data matching API schema
+                    const payload = {
+                      partyName: formData.partyName,
+                      shortname: formData.shortname,
+                      address1: formData.address1,
+                      ...(formData.address2 && { address2: formData.address2 }),
+                      ...(formData.address3 && { address3: formData.address3 }),
+                      city: formData.city,
+                      country: formData.country,
+                      email: formData.email,
+                      phone1: formData.phone1,
+                      ...(formData.phone2 && { phone2: formData.phone2 }),
+                      status: formData.status,
+                    };
+
+                    const response = await apiClient.post(
+                      "/customers",
+                      payload
+                    );
+
+                    // Add the newly created customer to the list
+                    const newCustomer = {
+                      id: response.data.id || customers.length + 1,
+                      ...response.data,
+                      addedBy: currentUser?.username || "System",
+                    };
+                    const updated = [...customers, newCustomer];
+                    setCustomers(updated);
+                    setFilteredCustomers(updated);
+                    setFormData({
+                      partyName: "",
+                      shortname: "",
+                      address1: "",
+                      address2: "",
+                      address3: "",
+                      city: "",
+                      country: "",
+                      email: "",
+                      phone1: "",
+                      phone2: "",
+                      status: "Active",
+                    });
+                    closeAddModal();
+                  } catch (error) {
+                    console.error("Error creating customer:", error);
+                    alert("Failed to create customer. Please try again.");
+                  }
                 }}
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -561,59 +1077,27 @@ function CustomersPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm text-slate-300">City Code</label>
+                    <label className="text-sm text-slate-300">City</label>
                     <input
-                      name="cityCode"
-                      value={formData.cityCode}
+                      name="city"
+                      value={formData.city}
                       onChange={(e) =>
-                        setFormData({ ...formData, cityCode: e.target.value })
-                      }
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                      placeholder="e.g. NYC"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm text-slate-300">City Name</label>
-                    <input
-                      name="cityName"
-                      value={formData.cityName}
-                      onChange={(e) =>
-                        setFormData({ ...formData, cityName: e.target.value })
+                        setFormData({ ...formData, city: e.target.value })
                       }
                       required
                       className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
                       placeholder="e.g. New York"
                     />
                   </div>
-
                   <div className="space-y-2">
-                    <label className="text-sm text-slate-300">
-                      Country Code
-                    </label>
+                    <label className="text-sm text-slate-300">Country</label>
                     <input
-                      name="countryCode"
-                      value={formData.countryCode}
+                      name="country"
+                      value={formData.country}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          countryCode: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                      placeholder="e.g. US"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm text-slate-300">
-                      Country Name
-                    </label>
-                    <input
-                      name="countryName"
-                      value={formData.countryName}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          countryName: e.target.value,
+                          country: e.target.value,
                         })
                       }
                       required
@@ -631,6 +1115,7 @@ function CustomersPage() {
                       onChange={(e) =>
                         setFormData({ ...formData, email: e.target.value })
                       }
+                      required
                       className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
                       placeholder="e.g. hello@company.com"
                     />
@@ -683,17 +1168,11 @@ function CustomersPage() {
                       </option>
                     </select>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 md:col-span-2">
                     <label className="text-sm text-slate-300">Added By</label>
-                    <input
-                      name="addedBy"
-                      value={formData.addedBy}
-                      onChange={(e) =>
-                        setFormData({ ...formData, addedBy: e.target.value })
-                      }
-                      placeholder="e.g. Admin"
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                    />
+                    <div className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white">
+                      {currentUser?.username || "System"}
+                    </div>
                   </div>
                 </div>
 
@@ -781,388 +1260,6 @@ function CustomersPage() {
                 </div>
               )}
 
-              {/* Edit Customer Modal */}
-              {isEditOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                  <div
-                    className="absolute inset-0 bg-black/60"
-                    onClick={closeEditModal}
-                  ></div>
-                  <div
-                    className={`relative z-10 w-full max-w-3xl bg-slate-900/90 border border-white/20 rounded-2xl p-6 backdrop-blur-xl max-h-[80vh] overflow-y-auto transition-all duration-200 ease-out transform ${
-                      isEditEntering ? "opacity-0 scale-90" : ""
-                    } ${
-                      isEditClosing
-                        ? "opacity-0 scale-90"
-                        : "opacity-100 scale-100"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-xl font-semibold text-white">
-                        Edit Customer
-                      </h3>
-                      <button
-                        onClick={closeEditModal}
-                        className="text-slate-300 hover:text-white"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                    <form onSubmit={submitEdit}>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-sm text-slate-300">
-                            Party Name
-                          </label>
-                          <input
-                            name="partyName"
-                            value={editData.partyName}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                partyName: e.target.value,
-                              })
-                            }
-                            required
-                            placeholder="e.g. Tech Solutions Inc"
-                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm text-slate-300">
-                            Shortname
-                          </label>
-                          <input
-                            name="shortname"
-                            value={editData.shortname}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                shortname: e.target.value,
-                              })
-                            }
-                            placeholder="e.g. TSI"
-                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                          />
-                        </div>
-                        <div className="space-y-2 md:col-span-2">
-                          <label className="text-sm text-slate-300">
-                            Address 1
-                          </label>
-                          <input
-                            name="address1"
-                            value={editData.address1}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                address1: e.target.value,
-                              })
-                            }
-                            required
-                            placeholder="Street, number, area"
-                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm text-slate-300">
-                            Address 2
-                          </label>
-                          <input
-                            name="address2"
-                            value={editData.address2}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                address2: e.target.value,
-                              })
-                            }
-                            placeholder="Suite, building, unit (optional)"
-                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm text-slate-300">
-                            Address 3
-                          </label>
-                          <input
-                            name="address3"
-                            value={editData.address3}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                address3: e.target.value,
-                              })
-                            }
-                            placeholder="Floor, landmark (optional)"
-                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm text-slate-300">
-                            City Code
-                          </label>
-                          <input
-                            name="cityCode"
-                            value={editData.cityCode}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                cityCode: e.target.value,
-                              })
-                            }
-                            placeholder="e.g. NYC"
-                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm text-slate-300">
-                            City Name
-                          </label>
-                          <input
-                            name="cityName"
-                            value={editData.cityName}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                cityName: e.target.value,
-                              })
-                            }
-                            required
-                            placeholder="e.g. New York"
-                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm text-slate-300">
-                            Country Code
-                          </label>
-                          <input
-                            name="countryCode"
-                            value={editData.countryCode}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                countryCode: e.target.value,
-                              })
-                            }
-                            placeholder="e.g. US"
-                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm text-slate-300">
-                            Country Name
-                          </label>
-                          <input
-                            name="countryName"
-                            value={editData.countryName}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                countryName: e.target.value,
-                              })
-                            }
-                            required
-                            placeholder="e.g. United States"
-                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm text-slate-300">
-                            Email
-                          </label>
-                          <input
-                            type="email"
-                            name="email"
-                            value={editData.email}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                email: e.target.value,
-                              })
-                            }
-                            placeholder="e.g. hello@company.com"
-                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm text-slate-300">
-                            Phone 1
-                          </label>
-                          <input
-                            name="phone1"
-                            value={editData.phone1}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                phone1: e.target.value,
-                              })
-                            }
-                            required
-                            placeholder="Primary phone"
-                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm text-slate-300">
-                            Phone 2
-                          </label>
-                          <input
-                            name="phone2"
-                            value={editData.phone2}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                phone2: e.target.value,
-                              })
-                            }
-                            placeholder="Secondary phone (optional)"
-                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm text-slate-300">
-                            Status
-                          </label>
-                          <select
-                            name="status"
-                            value={editData.status}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                status: e.target.value,
-                              })
-                            }
-                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                          >
-                            <option className="bg-slate-800" value="Active">
-                              Active
-                            </option>
-                            <option className="bg-slate-800" value="Inactive">
-                              Inactive
-                            </option>
-                            <option className="bg-slate-800" value="Pending">
-                              Pending
-                            </option>
-                          </select>
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm text-slate-300">
-                            Added By
-                          </label>
-                          <input
-                            name="addedBy"
-                            value={editData.addedBy}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                addedBy: e.target.value,
-                              })
-                            }
-                            placeholder="e.g. Admin"
-                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                          />
-                        </div>
-                      </div>
-                      <div className="mt-6 flex justify-end space-x-3">
-                        <button
-                          type="button"
-                          onClick={closeEditModal}
-                          className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 border border-white/20"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700"
-                        >
-                          Save Changes
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
-
-              {/* Delete Confirmation Modal */}
-              {isDeleteOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                  <div
-                    className="absolute inset-0 bg-black/60"
-                    onClick={closeDeleteModal}
-                  ></div>
-                  <div
-                    className={`relative z-10 w-full max-w-md bg-slate-900/90 border border-white/20 rounded-2xl p-6 backdrop-blur-xl transition-all duration-200 ease-out transform ${
-                      isDeleteEntering ? "opacity-0 scale-90" : ""
-                    } ${
-                      isDeleteClosing
-                        ? "opacity-0 scale-90"
-                        : "opacity-100 scale-100"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-lg font-semibold text-white">
-                        Remove Customer
-                      </h4>
-                      <button
-                        onClick={closeDeleteModal}
-                        className="text-slate-300 hover:text-white"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                    <p className="text-slate-300 text-sm">
-                      Are you sure you want to remove{" "}
-                      {deleteTarget ? (
-                        <span className="font-semibold text-white">
-                          {deleteTarget.partyName}
-                        </span>
-                      ) : (
-                        "this customer"
-                      )}
-                      ? This action cannot be undone.
-                    </p>
-                    <div className="mt-6 flex justify-end space-x-3">
-                      <button
-                        onClick={closeDeleteModal}
-                        className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 border border-white/20"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={confirmDelete}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
               <div className="rounded-lg border border-white/10 overflow-auto max-h-[65vh]">
                 <table className="min-w-full">
                   <thead className="bg-white/5 sticky top-0 z-10">
@@ -1211,12 +1308,23 @@ function CustomersPage() {
                   </tbody>
                 </table>
               </div>
-              <div className="mt-4 flex justify-end">
+              <div className="mt-4 flex justify-end space-x-3">
                 <button
                   onClick={closeImportModal}
                   className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 border border-white/20"
                 >
-                  Close
+                  Cancel
+                </button>
+                <button
+                  onClick={handleImportSubmit}
+                  disabled={
+                    isSubmittingImport || !importData || excelRows.length === 0
+                  }
+                  className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200"
+                >
+                  {isSubmittingImport
+                    ? "Importing..."
+                    : `Import ${excelRows.length} Customers`}
                 </button>
               </div>
             </div>
@@ -1263,6 +1371,46 @@ function CustomersPage() {
               />
             </svg>
             {isImporting ? "Uploading..." : "Import from Excel"}
+          </button>
+          <button
+            onClick={handleExportExcel}
+            disabled={filteredCustomers.length === 0}
+            className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-60"
+          >
+            <svg
+              className="w-5 h-5 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            Export to Excel
+          </button>
+          <button
+            onClick={handleExportCSV}
+            disabled={filteredCustomers.length === 0}
+            className="flex items-center px-4 py-2 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-lg hover:from-teal-700 hover:to-cyan-700 transition-all duration-200 disabled:opacity-60"
+          >
+            <svg
+              className="w-5 h-5 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
+            </svg>
+            Export to CSV
           </button>
           <input
             ref={fileInputRef}
@@ -1378,10 +1526,10 @@ function CustomersPage() {
                   <option value="partyName" className="bg-slate-800">
                     Party Name
                   </option>
-                  <option value="cityName" className="bg-slate-800">
+                  <option value="city" className="bg-slate-800">
                     City
                   </option>
-                  <option value="countryName" className="bg-slate-800">
+                  <option value="country" className="bg-slate-800">
                     Country
                   </option>
                   <option value="status" className="bg-slate-800">
@@ -1523,22 +1671,10 @@ function CustomersPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-300">
-                        <div className="space-y-1">
-                          <div className="font-medium">{customer.cityName}</div>
-                          <div className="text-xs text-slate-400 font-mono">
-                            {customer.cityCode}
-                          </div>
-                        </div>
+                        {customer.city || customer.cityName || "—"}
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-300">
-                        <div className="space-y-1">
-                          <div className="font-medium">
-                            {customer.countryName}
-                          </div>
-                          <div className="text-xs text-slate-400 font-mono">
-                            {customer.countryCode}
-                          </div>
-                        </div>
+                        {customer.country || customer.countryName || "—"}
                       </td>
                       <td className="px-4 py-3 text-sm text-blue-300">
                         <a
