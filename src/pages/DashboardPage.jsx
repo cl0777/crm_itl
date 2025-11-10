@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import apiClient from "@/lib/api";
+import logo from "/logo.png";
 
 function DashboardPage() {
   const navigate = useNavigate();
@@ -53,7 +54,7 @@ function DashboardPage() {
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
               <div className="inline-flex items-center justify-center w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-500 rounded-lg mr-3">
-                <img src="/logo.png" alt="Logo" />
+                <img src={logo} alt="Logo" />
               </div>
               <h1 className="text-2xl font-bold text-white">
                 CRM Admin Dashboard
