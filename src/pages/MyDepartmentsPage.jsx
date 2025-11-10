@@ -79,7 +79,7 @@ function MyDepartmentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
       {/* Header */}
       <header className="bg-slate-900/90 backdrop-blur-xl border-b border-white/10 sticky top-0 z-40 shadow-2xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -184,7 +184,7 @@ function MyDepartmentsPage() {
                         <span
                           className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                             user.role === "admin"
-                              ? "bg-purple-500/20 text-purple-300"
+                              ? "bg-blue-500/20 text-sky-300"
                               : user.role === "manager"
                               ? "bg-green-500/20 text-green-300"
                               : "bg-blue-500/20 text-blue-300"

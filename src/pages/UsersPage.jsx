@@ -386,14 +386,14 @@ function UsersPage() {
 
   if (isLoading || !currentUser) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
       {/* Header */}
       <header className="bg-white/10 backdrop-blur-lg border-b border-white/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -417,7 +417,7 @@ function UsersPage() {
                   />
                 </svg>
               </button>
-              <div className="inline-flex items-center justify-center w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg mr-3">
+              <div className="inline-flex items-center justify-center w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg mr-3">
                 <svg
                   className="w-6 h-6 text-white"
                   fill="none"
@@ -473,7 +473,7 @@ function UsersPage() {
         <div className="mb-6">
           <button
             onClick={openCreateModal}
-            className="flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200"
+            className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-lg hover:from-blue-700 hover:to-cyan-600 transition-all duration-200"
           >
             <svg
               className="w-5 h-5 mr-2"
@@ -683,7 +683,7 @@ function UsersPage() {
                         <span
                           className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                             user.role === "admin"
-                              ? "bg-purple-500/20 text-purple-300"
+                              ? "bg-blue-500/20 text-sky-300"
                               : user.role === "manager"
                               ? "bg-green-500/20 text-green-300"
                               : "bg-blue-500/20 text-blue-300"
@@ -987,7 +987,7 @@ function UsersPage() {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700"
+                    className="px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-lg hover:from-blue-700 hover:to-cyan-600"
                   >
                     Create User
                   </button>
@@ -1209,7 +1209,7 @@ function UsersPage() {
                 </button>
                 <button
                   onClick={handleRoleUpdate}
-                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700"
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-lg hover:from-blue-700 hover:to-cyan-600"
                 >
                   Save Changes
                 </button>
