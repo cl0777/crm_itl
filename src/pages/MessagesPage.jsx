@@ -149,6 +149,37 @@ function MessagesPage() {
     setMessageText("");
   };
 
+  // Template variable replacement function
+  const replaceTemplateVariables = (text, customer) => {
+    if (!text || !customer) return text;
+
+    const replacements = {
+      "{company_name}": customer.partyName || "",
+      "{companyname}": customer.partyName || "",
+      "{represented_name}": customer.shortname || "",
+      "{shortname}": customer.shortname || "",
+      "{email}": customer.email || "",
+      "{phone}": customer.phone1 || "",
+      "{phone1}": customer.phone1 || "",
+      "{primary_phone}": customer.phone1 || "",
+      "{phone2}": customer.phone2 || "",
+      "{secondary_phone}": customer.phone2 || "",
+      "{city}": customer.city || customer.cityName || "",
+      "{country}": customer.country || customer.countryName || "",
+      "{address1}": customer.address1 || "",
+      "{address2}": customer.address2 || "",
+      "{address}": customer.address1 || "",
+    };
+
+    let result = text;
+    Object.keys(replacements).forEach((key) => {
+      const regex = new RegExp(key.replace(/[{}]/g, "\\$&"), "gi");
+      result = result.replace(regex, replacements[key]);
+    });
+
+    return result;
+  };
+
   const handleSend = async (type) => {
     if (type === "Email") {
       // Send email through API
@@ -159,31 +190,64 @@ function MessagesPage() {
           return;
         }
 
-        // Create FormData for file upload
-        const formData = new FormData();
-
-        // Add subject as string
-        formData.append("subject", emailSubject || "");
-
-        // Add bodyMarkdown as string
-        formData.append("bodyMarkdown", messageText || "");
-
-        // Add customer IDs as array (append multiple times for FormData array parsing)
-        // NestJS will parse multiple entries with same key as an array
         const customerIds = Array.from(selectedIds);
-        customerIds.forEach((id) => {
-          formData.append("customerIds", String(id));
-        });
+        const selectedCustomers = customers.filter((c) =>
+          customerIds.includes(c.id)
+        );
 
-        // Add attachments
-        attachments.forEach((attachment) => {
-          formData.append("attachments", attachment.file);
-        });
+        // Send individual emails to each customer with personalized content
+        let successCount = 0;
+        let errorCount = 0;
 
-        // Send to API
-        await apiClient.post("/messages/mail", formData);
+        for (const customer of selectedCustomers) {
+          try {
+            // Replace template variables for this customer
+            const personalizedSubject = replaceTemplateVariables(
+              emailSubject,
+              customer
+            );
+            const personalizedBody = replaceTemplateVariables(
+              messageText,
+              customer
+            );
 
-        alert(`Email sent successfully to ${selectedIds.size} customer(s)!`);
+            // Create FormData for file upload
+            const formData = new FormData();
+
+            // Add subject as string (personalized)
+            formData.append("subject", personalizedSubject || "");
+
+            // Add bodyMarkdown as string (personalized)
+            formData.append("bodyMarkdown", personalizedBody || "");
+
+            // Add single customer ID
+            formData.append("customerIds", String(customer.id));
+
+            // Add attachments
+            attachments.forEach((attachment) => {
+              formData.append("attachments", attachment.file);
+            });
+
+            // Send to API
+            await apiClient.post("/messages/mail", formData);
+            successCount++;
+          } catch (error) {
+            console.error(
+              `Error sending email to ${customer.partyName}:`,
+              error
+            );
+            errorCount++;
+          }
+        }
+
+        if (errorCount === 0) {
+          alert(`Email sent successfully to ${successCount} customer(s)!`);
+        } else {
+          alert(
+            `Email sent to ${successCount} customer(s), ${errorCount} failed.`
+          );
+        }
+
         closeForms();
       } catch (error) {
         console.error("Error sending email:", error);
@@ -842,6 +906,61 @@ function MessagesPage() {
                     >
                       Clear
                     </button>
+                  </div>
+                </div>
+                {/* Template Variables Helper */}
+                <div className="mb-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                  <div className="text-xs text-blue-300 mb-2 font-semibold">
+                    Available Template Variables (click to insert):
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      "{company_name}",
+                      "{represented_name}",
+                      "{email}",
+                      "{phone}",
+                      "{phone2}",
+                      "{city}",
+                      "{country}",
+                      "{address1}",
+                      "{address2}",
+                    ].map((variable) => (
+                      <button
+                        key={variable}
+                        type="button"
+                        onClick={() => {
+                          const textarea = emailTextareaRef.current;
+                          if (textarea) {
+                            const start = textarea.selectionStart;
+                            const end = textarea.selectionEnd;
+                            const text = messageText;
+                            const newText =
+                              text.substring(0, start) +
+                              variable +
+                              text.substring(end);
+                            setMessageText(newText);
+                            // Set cursor position after inserted variable
+                            setTimeout(() => {
+                              textarea.focus();
+                              textarea.setSelectionRange(
+                                start + variable.length,
+                                start + variable.length
+                              );
+                            }, 0);
+                          } else {
+                            setMessageText((prev) => prev + variable);
+                          }
+                        }}
+                        className="px-2 py-1 text-xs bg-blue-500/20 border border-blue-500/30 rounded text-blue-200 hover:bg-blue-500/30 transition-colors"
+                        title={`Insert ${variable}`}
+                      >
+                        {variable}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-xs text-blue-400/70 mt-2">
+                    Variables will be replaced with actual customer data when
+                    sending
                   </div>
                 </div>
                 <label className="text-sm text-slate-300">Subject</label>
