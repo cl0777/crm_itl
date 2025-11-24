@@ -39,7 +39,6 @@ function CustomersPage() {
     shortname: "",
     address1: "",
     address2: "",
-    address3: "",
     city: "",
     country: "",
     email: "",
@@ -60,7 +59,6 @@ function CustomersPage() {
     shortname: "",
     address1: "",
     address2: "",
-    address3: "",
     city: "",
     country: "",
     email: "",
@@ -105,6 +103,15 @@ function CustomersPage() {
     fetchCurrentUser();
     fetchCustomers();
   }, []);
+
+  // Get unique countries from customers for filter dropdown
+  const uniqueCountries = Array.from(
+    new Set(
+      customers
+        .map((c) => c.country || c.countryName)
+        .filter((country) => country && country.trim() !== "")
+    )
+  ).sort();
 
   // Filter and sort customers
   useEffect(() => {
@@ -241,7 +248,7 @@ function CustomersPage() {
       return;
     }
 
-    // Prepare data for export
+    // Prepare data for export - using backend-expected headers for import compatibility
     const exportData = filteredCustomers.map((customer) => ({
       "Party Name": customer.partyName,
       Shortname: customer.shortname || "",
@@ -293,7 +300,7 @@ function CustomersPage() {
       return;
     }
 
-    // Prepare data for export
+    // Prepare data for export - using backend-expected headers for import compatibility
     const exportData = filteredCustomers.map((customer) => ({
       "Party Name": customer.partyName,
       Shortname: customer.shortname || "",
@@ -430,7 +437,6 @@ function CustomersPage() {
       shortname: customer.shortname || "",
       address1: customer.address1 || "",
       address2: customer.address2 || "",
-      address3: customer.address3 || "",
       city: customer.city || customer.cityName || "",
       country: customer.country || customer.countryName || "",
       email: customer.email || "",
@@ -464,7 +470,6 @@ function CustomersPage() {
         shortname: editData.shortname,
         address1: editData.address1,
         ...(editData.address2 && { address2: editData.address2 }),
-        ...(editData.address3 && { address3: editData.address3 }),
         city: editData.city,
         country: editData.country,
         email: editData.email,
@@ -630,7 +635,9 @@ function CustomersPage() {
               <form onSubmit={submitEdit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm text-slate-300">Party Name</label>
+                    <label className="text-sm text-slate-300">
+                      Company name
+                    </label>
                     <input
                       name="partyName"
                       value={editData.partyName}
@@ -646,7 +653,9 @@ function CustomersPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm text-slate-300">Shortname</label>
+                    <label className="text-sm text-slate-300">
+                      Represented name
+                    </label>
                     <input
                       name="shortname"
                       value={editData.shortname}
@@ -688,21 +697,6 @@ function CustomersPage() {
                         })
                       }
                       placeholder="Suite, building, unit (optional)"
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm text-slate-300">Address 3</label>
-                    <input
-                      name="address3"
-                      value={editData.address3}
-                      onChange={(e) =>
-                        setEditData({
-                          ...editData,
-                          address3: e.target.value,
-                        })
-                      }
-                      placeholder="Floor, landmark (optional)"
                       className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
                     />
                   </div>
@@ -756,7 +750,9 @@ function CustomersPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm text-slate-300">Phone 1</label>
+                    <label className="text-sm text-slate-300">
+                      Primary phone
+                    </label>
                     <input
                       name="phone1"
                       value={editData.phone1}
@@ -772,7 +768,9 @@ function CustomersPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm text-slate-300">Phone 2</label>
+                    <label className="text-sm text-slate-300">
+                      Secondary phone
+                    </label>
                     <input
                       name="phone2"
                       value={editData.phone2}
@@ -968,7 +966,6 @@ function CustomersPage() {
                       shortname: formData.shortname,
                       address1: formData.address1,
                       ...(formData.address2 && { address2: formData.address2 }),
-                      ...(formData.address3 && { address3: formData.address3 }),
                       city: formData.city,
                       country: formData.country,
                       email: formData.email,
@@ -996,7 +993,6 @@ function CustomersPage() {
                       shortname: "",
                       address1: "",
                       address2: "",
-                      address3: "",
                       city: "",
                       country: "",
                       email: "",
@@ -1013,7 +1009,9 @@ function CustomersPage() {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm text-slate-300">Party Name</label>
+                    <label className="text-sm text-slate-300">
+                      Company name
+                    </label>
                     <input
                       name="partyName"
                       value={formData.partyName}
@@ -1026,7 +1024,9 @@ function CustomersPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm text-slate-300">Shortname</label>
+                    <label className="text-sm text-slate-300">
+                      Represented name
+                    </label>
                     <input
                       name="shortname"
                       value={formData.shortname}
@@ -1063,19 +1063,6 @@ function CustomersPage() {
                       placeholder="Suite, building, unit (optional)"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm text-slate-300">Address 3</label>
-                    <input
-                      name="address3"
-                      value={formData.address3}
-                      onChange={(e) =>
-                        setFormData({ ...formData, address3: e.target.value })
-                      }
-                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                      placeholder="Floor, landmark (optional)"
-                    />
-                  </div>
-
                   <div className="space-y-2">
                     <label className="text-sm text-slate-300">City</label>
                     <input
@@ -1121,7 +1108,9 @@ function CustomersPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm text-slate-300">Phone 1</label>
+                    <label className="text-sm text-slate-300">
+                      Primary phone
+                    </label>
                     <input
                       name="phone1"
                       value={formData.phone1}
@@ -1134,7 +1123,9 @@ function CustomersPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm text-slate-300">Phone 2</label>
+                    <label className="text-sm text-slate-300">
+                      Secondary phone
+                    </label>
                     <input
                       name="phone2"
                       value={formData.phone2}
@@ -1491,21 +1482,15 @@ function CustomersPage() {
                 <option value="All" className="bg-slate-800">
                   All Countries
                 </option>
-                <option value="United States" className="bg-slate-800">
-                  United States
-                </option>
-                <option value="United Kingdom" className="bg-slate-800">
-                  United Kingdom
-                </option>
-                <option value="Germany" className="bg-slate-800">
-                  Germany
-                </option>
-                <option value="Japan" className="bg-slate-800">
-                  Japan
-                </option>
-                <option value="Australia" className="bg-slate-800">
-                  Australia
-                </option>
+                {uniqueCountries.map((country) => (
+                  <option
+                    key={country}
+                    value={country}
+                    className="bg-slate-800"
+                  >
+                    {country}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -1524,7 +1509,7 @@ function CustomersPage() {
                     ID
                   </option>
                   <option value="partyName" className="bg-slate-800">
-                    Party Name
+                    Company name
                   </option>
                   <option value="city" className="bg-slate-800">
                     City
@@ -1609,10 +1594,10 @@ function CustomersPage() {
                       ID
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                      Party Name
+                      Company name
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                      Shortname
+                      Represented name
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                       Address
@@ -1661,11 +1646,6 @@ function CustomersPage() {
                           {customer.address2 && (
                             <div className="text-xs text-slate-400">
                               {customer.address2}
-                            </div>
-                          )}
-                          {customer.address3 && (
-                            <div className="text-xs text-slate-400">
-                              {customer.address3}
                             </div>
                           )}
                         </div>

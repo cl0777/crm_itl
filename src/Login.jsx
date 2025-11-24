@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import logo from "/logo.png";
 
 function Login({ onLogin }) {
   const [formData, setFormData] = useState({

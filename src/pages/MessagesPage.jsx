@@ -40,6 +40,18 @@ function MessagesPage() {
     fetchCustomers();
   }, []);
 
+  // Get unique countries from active customers for filter dropdown
+  const uniqueCountries = useMemo(() => {
+    const activeList = customers.filter((c) => c.status === "Active");
+    return Array.from(
+      new Set(
+        activeList
+          .map((c) => c.country || c.countryName)
+          .filter((country) => country && country.trim() !== "")
+      )
+    ).sort();
+  }, [customers]);
+
   const activeCustomers = useMemo(() => {
     // Only Active customers
     let list = customers.filter((c) => c.status === "Active");
@@ -571,21 +583,15 @@ function MessagesPage() {
                 <option value="All" className="bg-slate-800">
                   All Countries
                 </option>
-                <option value="United States" className="bg-slate-800">
-                  United States
-                </option>
-                <option value="United Kingdom" className="bg-slate-800">
-                  United Kingdom
-                </option>
-                <option value="Germany" className="bg-slate-800">
-                  Germany
-                </option>
-                <option value="Japan" className="bg-slate-800">
-                  Japan
-                </option>
-                <option value="Australia" className="bg-slate-800">
-                  Australia
-                </option>
+                {uniqueCountries.map((country) => (
+                  <option
+                    key={country}
+                    value={country}
+                    className="bg-slate-800"
+                  >
+                    {country}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -600,7 +606,7 @@ function MessagesPage() {
                   className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="partyName" className="bg-slate-800">
-                    Party Name
+                    Company name
                   </option>
                   <option value="city" className="bg-slate-800">
                     City
@@ -688,7 +694,7 @@ function MessagesPage() {
                       />
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                      Party Name
+                      Company name
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                       Email

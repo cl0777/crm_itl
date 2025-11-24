@@ -6,6 +6,8 @@ import logo from "/logo.png";
 function DashboardPage() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [customerCount, setCustomerCount] = useState(0);
+  const [isLoadingCount, setIsLoadingCount] = useState(true);
 
   useEffect(() => {
     // Check if token exists
@@ -29,7 +31,23 @@ function DashboardPage() {
       }
     };
 
+    // Fetch customer count from API
+    const fetchCustomerCount = async () => {
+      try {
+        setIsLoadingCount(true);
+        const response = await apiClient.get("/customers/count");
+        const count = response.data?.count || response.data || 0;
+        setCustomerCount(count);
+      } catch (error) {
+        console.error("Error fetching customer count:", error);
+        setCustomerCount(0);
+      } finally {
+        setIsLoadingCount(false);
+      }
+    };
+
     fetchUserData();
+    fetchCustomerCount();
   }, [navigate]);
 
   const handleLogout = () => {
@@ -264,60 +282,17 @@ function DashboardPage() {
                   />
                 </svg>
               </div>
-              <span className="text-2xl font-bold text-white">1,234</span>
+              <span className="text-2xl font-bold text-white">
+                {isLoadingCount ? (
+                  <span className="text-sm">Loading...</span>
+                ) : (
+                  customerCount.toLocaleString()
+                )}
+              </span>
             </div>
             <h3 className="text-lg font-semibold text-white mb-2">
               Total Customers
             </h3>
-            <p className="text-slate-400 text-sm">+12% from last month</p>
-          </div>
-
-          {/* Orders Card */}
-          <div className="bg-white/10 backdrop-blur-lg rounded-xl shadow-xl border border-white/20 p-6 hover:bg-white/15 transition-all duration-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-green-500/20 rounded-lg">
-                <svg
-                  className="w-6 h-6 text-green-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                  />
-                </svg>
-              </div>
-              <span className="text-2xl font-bold text-white">567</span>
-            </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Orders</h3>
-            <p className="text-slate-400 text-sm">+8% from last month</p>
-          </div>
-
-          {/* Revenue Card */}
-          <div className="bg-white/10 backdrop-blur-lg rounded-xl shadow-xl border border-white/20 p-6 hover:bg-white/15 transition-all duration-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-blue-500/20 rounded-lg">
-                <svg
-                  className="w-6 h-6 text-sky-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
-                  />
-                </svg>
-              </div>
-              <span className="text-2xl font-bold text-white">$45.2K</span>
-            </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Revenue</h3>
-            <p className="text-slate-400 text-sm">+15% from last month</p>
           </div>
         </div>
       </main>
