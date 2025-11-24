@@ -36,8 +36,25 @@ function DashboardPage() {
       try {
         setIsLoadingCount(true);
         const response = await apiClient.get("/customers/count");
-        const count = response.data?.count || response.data || 0;
-        setCustomerCount(count);
+        // Handle different response structures
+        let count = 0;
+        if (typeof response.data === "number") {
+          count = response.data;
+        } else if (
+          response.data?.count !== undefined &&
+          response.data?.count !== null
+        ) {
+          count = Number(response.data.count);
+        } else if (
+          typeof response.data === "object" &&
+          response.data !== null
+        ) {
+          // If it's an object, try to find a numeric value
+          const values = Object.values(response.data);
+          const numericValue = values.find((v) => typeof v === "number");
+          count = numericValue !== undefined ? numericValue : 0;
+        }
+        setCustomerCount(isNaN(count) ? 0 : count);
       } catch (error) {
         console.error("Error fetching customer count:", error);
         setCustomerCount(0);
@@ -285,8 +302,10 @@ function DashboardPage() {
               <span className="text-2xl font-bold text-white">
                 {isLoadingCount ? (
                   <span className="text-sm">Loading...</span>
-                ) : (
+                ) : typeof customerCount === "number" ? (
                   customerCount.toLocaleString()
+                ) : (
+                  0
                 )}
               </span>
             </div>

@@ -26,7 +26,6 @@ function UsersPage() {
   const [createFormData, setCreateFormData] = useState({
     username: "",
     name: "",
-    email: "",
     password: "",
     role: "user",
     departmentId: null,
@@ -103,7 +102,6 @@ function UsersPage() {
         (user.username || "")
           .toLowerCase()
           .includes(searchTerm.toLowerCase()) ||
-        (user.email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         (user.login || "").toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesRole = roleFilter === "All" || user.role === roleFilter;
@@ -227,7 +225,6 @@ function UsersPage() {
       setCreateFormData({
         username: "",
         name: "",
-        email: "",
         password: "",
         role: "user",
         departmentId: null,
@@ -561,9 +558,6 @@ function UsersPage() {
                   <option value="username" className="bg-slate-800">
                     Username
                   </option>
-                  <option value="email" className="bg-slate-800">
-                    Email
-                  </option>
                   <option value="role" className="bg-slate-800">
                     Role
                   </option>
@@ -649,9 +643,6 @@ function UsersPage() {
                       Username
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                       Role
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
@@ -670,14 +661,6 @@ function UsersPage() {
                     >
                       <td className="px-4 py-3 text-sm text-white font-medium">
                         {user.username}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-blue-300">
-                        <a
-                          href={`mailto:${user.email}`}
-                          className="hover:text-blue-200 transition-colors"
-                        >
-                          {user.email}
-                        </a>
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -829,24 +812,6 @@ function UsersPage() {
                       required
                       className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Enter username"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-slate-300">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      value={createFormData.email}
-                      onChange={(e) =>
-                        setCreateFormData({
-                          ...createFormData,
-                          email: e.target.value,
-                        })
-                      }
-                      required
-                      className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Enter email"
                     />
                   </div>
                   <div className="space-y-2">
