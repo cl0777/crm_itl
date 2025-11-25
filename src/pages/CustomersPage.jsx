@@ -250,17 +250,17 @@ function CustomersPage() {
 
     // Prepare data for export - using backend-expected headers for import compatibility
     const exportData = filteredCustomers.map((customer) => ({
-      "Party Name": customer.partyName,
-      Shortname: customer.shortname || "",
+      "Company Name": customer.partyName,
+      "Represented Name": customer.shortname || "",
       "Address 1": customer.address1,
       "Address 2": customer.address2 || "",
       City: customer.city || customer.cityName || "",
       Country: customer.country || customer.countryName || "",
-      Email: customer.email,
-      "Phone 1": customer.phone1,
-      "Phone 2": customer.phone2 || "",
-      Status: customer.status,
-      "Added By": customer.addedBy || "",
+      Email: customer.email | "",
+      "Primary Phone": customer.phone1 || "",
+      "Secondary Phone": customer.phone2 || "",
+      Status: customer.status || "",
+      "Added By": customer.addedBy || "System",
     }));
 
     // Create workbook
@@ -301,15 +301,15 @@ function CustomersPage() {
 
     // Prepare data for export - using backend-expected headers for import compatibility
     const exportData = filteredCustomers.map((customer) => ({
-      "Party Name": customer.partyName,
-      Shortname: customer.shortname || "",
+      "Company Name": customer.partyName,
+      "Represented Name": customer.shortname || "",
       "Address 1": customer.address1,
       "Address 2": customer.address2 || "",
       City: customer.city || customer.cityName || "",
       Country: customer.country || customer.countryName || "",
       Email: customer.email,
-      "Phone 1": customer.phone1,
-      "Phone 2": customer.phone2 || "",
+      "Primary Phone": customer.phone1,
+      "Secondary phone": customer.phone2 || "",
       Status: customer.status,
       "Added By": customer.addedBy || "",
     }));
