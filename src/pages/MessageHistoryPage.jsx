@@ -81,7 +81,11 @@ function MessageHistoryPage() {
 
     // Type filter
     if (typeFilter !== "All") {
-      filtered = filtered.filter((msg) => msg.type === typeFilter);
+      filtered = filtered.filter((msg) => {
+        // Treat undefined/null type as "Email" to match display logic
+        const messageType = msg.type || "Email";
+        return messageType === typeFilter;
+      });
     }
 
     // Sort

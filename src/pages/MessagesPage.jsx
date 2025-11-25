@@ -19,6 +19,17 @@ function MessagesPage() {
   const [countryFilter, setCountryFilter] = useState("All");
   const [sortBy, setSortBy] = useState("partyName");
   const [sortOrder, setSortOrder] = useState("asc");
+  // Signature states
+  const [signatures, setSignatures] = useState([]);
+  const [selectedSignatureId, setSelectedSignatureId] = useState("");
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+  const [signatureViewMode, setSignatureViewMode] = useState("list"); // "list" or "form"
+  const [editingSignature, setEditingSignature] = useState(null);
+  const [signatureFormData, setSignatureFormData] = useState({
+    name: "",
+    markdown: "",
+    isDefault: false,
+  });
 
   useEffect(() => {
     // Fetch customers from API
@@ -126,13 +137,36 @@ function MessagesPage() {
     });
   };
 
-  const openEmailForm = () => {
+  // Fetch signatures
+  const fetchSignatures = async () => {
+    try {
+      const response = await apiClient.get("/signatures");
+      const signaturesData = response.data || [];
+      // Map backend "content" field to "markdown" for frontend consistency
+      const mappedSignatures = signaturesData.map((sig) => ({
+        ...sig,
+        markdown: sig.markdown || sig.content || "", // Support both field names
+      }));
+      setSignatures(mappedSignatures);
+      // Set default signature if available
+      const defaultSig = mappedSignatures.find((sig) => sig.isDefault);
+      if (defaultSig) {
+        setSelectedSignatureId(defaultSig.id);
+      }
+    } catch (error) {
+      console.error("Error fetching signatures:", error);
+    }
+  };
+
+  const openEmailForm = async () => {
     setEmailSubject("");
     setMessageText("");
     // reset attachments
     attachments.forEach((a) => a.url && URL.revokeObjectURL(a.url));
     setAttachments([]);
     setIsEmailOpen(true);
+    // Fetch signatures when opening email form
+    await fetchSignatures();
   };
   const openWhatsAppForm = () => {
     setMessageText("");
@@ -476,6 +510,132 @@ function MessagesPage() {
       if (item && item.url) URL.revokeObjectURL(item.url);
       return prev.filter((a) => a.id !== id);
     });
+  };
+
+  // Signature management functions
+  const insertSignature = () => {
+    if (!selectedSignatureId) return;
+    const signature = signatures.find((sig) => sig.id === selectedSignatureId);
+    if (!signature) return;
+
+    const textarea = emailTextareaRef.current;
+    if (textarea) {
+      const start = textarea.selectionStart || 0;
+      const end = textarea.selectionEnd || 0;
+      const text = messageText || "";
+      const before = text.substring(0, start);
+      const after = text.substring(end);
+      const separator = before && !before.endsWith("\n\n") ? "\n\n" : "";
+      const newText = `${before}${separator}${signature.markdown}${after}`;
+      setMessageText(newText);
+      // Set cursor position after inserted signature
+      setTimeout(() => {
+        textarea.focus();
+        const newPosition =
+          start + separator.length + signature.markdown.length;
+        textarea.setSelectionRange(newPosition, newPosition);
+      }, 0);
+    } else {
+      setMessageText((prev) => {
+        const separator = prev && !prev.endsWith("\n\n") ? "\n\n" : "";
+        return prev + separator + signature.markdown;
+      });
+    }
+  };
+
+  const openSignatureModal = (signature = null) => {
+    if (signature) {
+      setEditingSignature(signature);
+      setSignatureFormData({
+        name: signature.name,
+        markdown: signature.markdown,
+        isDefault: signature.isDefault,
+      });
+      setSignatureViewMode("form");
+    } else {
+      setEditingSignature(null);
+      setSignatureFormData({
+        name: "",
+        markdown: "",
+        isDefault: false,
+      });
+      setSignatureViewMode("list");
+    }
+    setIsSignatureModalOpen(true);
+  };
+
+  const closeSignatureModal = () => {
+    setIsSignatureModalOpen(false);
+    setEditingSignature(null);
+    setSignatureViewMode("list");
+    setSignatureFormData({
+      name: "",
+      markdown: "",
+      isDefault: false,
+    });
+  };
+
+  const handleSaveSignature = async () => {
+    try {
+      if (
+        !signatureFormData.name.trim() ||
+        !signatureFormData.markdown.trim()
+      ) {
+        alert("Please fill in both name and markdown content.");
+        return;
+      }
+
+      // Transform data to match backend API expectations
+      const payload = {
+        name: signatureFormData.name,
+        content: signatureFormData.markdown, // Backend expects "content" not "markdown"
+        isDefault: signatureFormData.isDefault,
+      };
+
+      if (editingSignature) {
+        // Update existing signature
+        await apiClient.patch(`/signatures/${editingSignature.id}`, payload);
+      } else {
+        // Create new signature
+        await apiClient.post("/signatures", payload);
+      }
+
+      await fetchSignatures();
+      closeSignatureModal();
+    } catch (error) {
+      console.error("Error saving signature:", error);
+      const errorMessage =
+        error.response?.data?.message ||
+        (Array.isArray(error.response?.data?.message)
+          ? error.response.data.message.join(", ")
+          : "Failed to save signature. Please try again.");
+      alert(errorMessage);
+    }
+  };
+
+  const handleDeleteSignature = async (id) => {
+    if (!confirm("Are you sure you want to delete this signature?")) return;
+
+    try {
+      await apiClient.delete(`/signatures/${id}`);
+      await fetchSignatures();
+      if (selectedSignatureId === id) {
+        setSelectedSignatureId("");
+      }
+    } catch (error) {
+      console.error("Error deleting signature:", error);
+      alert("Failed to delete signature. Please try again.");
+    }
+  };
+
+  const handleSetDefaultSignature = async (id) => {
+    try {
+      await apiClient.patch(`/signatures/${id}`, { isDefault: true });
+      await fetchSignatures();
+    } catch (error) {
+      console.error("Error setting default signature:", error);
+      alert("Failed to set default signature. Please try again.");
+    }
   };
 
   return (
@@ -982,6 +1142,47 @@ function MessagesPage() {
                     sending
                   </div>
                 </div>
+                {/* Signature Selector */}
+                <div className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <label className="text-sm text-slate-300 mb-1 block">
+                      Signature
+                    </label>
+                    <select
+                      value={selectedSignatureId}
+                      onChange={(e) => setSelectedSignatureId(e.target.value)}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-sm"
+                    >
+                      <option value="" className="bg-slate-800">
+                        No signature
+                      </option>
+                      {signatures.map((sig) => (
+                        <option
+                          key={sig.id}
+                          value={sig.id}
+                          className="bg-slate-800"
+                        >
+                          {sig.name} {sig.isDefault ? "(Default)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    onClick={insertSignature}
+                    disabled={!selectedSignatureId}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    title="Insert signature into message"
+                  >
+                    Insert
+                  </button>
+                  <button
+                    onClick={() => openSignatureModal()}
+                    className="px-3 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 border border-white/20 text-sm"
+                    title="Manage signatures"
+                  >
+                    Manage
+                  </button>
+                </div>
                 <label className="text-sm text-slate-300">Subject</label>
                 <input
                   type="text"
@@ -1176,6 +1377,222 @@ function MessagesPage() {
                   Send
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Signature Management Modal */}
+        {isSignatureModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black/60"
+              onClick={closeSignatureModal}
+            ></div>
+            <div className="relative z-10 w-full max-w-3xl bg-slate-900/95 border border-white/20 rounded-2xl p-6 backdrop-blur-xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold text-white">
+                  {editingSignature ? "Edit Signature" : "Manage Signatures"}
+                </h3>
+                <button
+                  onClick={closeSignatureModal}
+                  className="text-slate-300 hover:text-white"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {signatureViewMode === "form" ? (
+                // Edit/Create Form
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm text-slate-300 mb-1 block">
+                      Signature Name
+                    </label>
+                    <input
+                      type="text"
+                      value={signatureFormData.name}
+                      onChange={(e) =>
+                        setSignatureFormData({
+                          ...signatureFormData,
+                          name: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                      placeholder="e.g., Professional, Personal"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-slate-300 mb-1 block">
+                      Signature Content (Markdown)
+                    </label>
+                    <textarea
+                      value={signatureFormData.markdown}
+                      onChange={(e) =>
+                        setSignatureFormData({
+                          ...signatureFormData,
+                          markdown: e.target.value,
+                        })
+                      }
+                      rows={8}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white font-mono text-sm"
+                      placeholder="Enter your signature in markdown format..."
+                    />
+                    <div className="mt-2 text-xs text-slate-400">
+                      You can use markdown formatting: **bold**, *italic*,
+                      links, etc.
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="isDefault"
+                      checked={signatureFormData.isDefault}
+                      onChange={(e) =>
+                        setSignatureFormData({
+                          ...signatureFormData,
+                          isDefault: e.target.checked,
+                        })
+                      }
+                      className="w-4 h-4 mr-2"
+                    />
+                    <label
+                      htmlFor="isDefault"
+                      className="text-sm text-slate-300"
+                    >
+                      Set as default signature
+                    </label>
+                  </div>
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      onClick={closeSignatureModal}
+                      className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 border border-white/20"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveSignature}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      {editingSignature ? "Update" : "Create"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // Signature List
+                <div className="space-y-4">
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => {
+                        setEditingSignature(null);
+                        setSignatureFormData({
+                          name: "",
+                          markdown: "",
+                          isDefault: false,
+                        });
+                        setSignatureViewMode("form");
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
+                    >
+                      <svg
+                        className="w-4 h-4 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4v16m8-8H4"
+                        />
+                      </svg>
+                      New Signature
+                    </button>
+                  </div>
+                  {signatures.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400">
+                      No signatures yet. Create your first signature!
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {signatures.map((sig) => (
+                        <div
+                          key={sig.id}
+                          className="bg-white/5 border border-white/10 rounded-lg p-4"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h4 className="text-white font-medium">
+                                  {sig.name}
+                                </h4>
+                                {sig.isDefault && (
+                                  <span className="px-2 py-0.5 text-xs bg-blue-500/20 text-blue-300 rounded">
+                                    Default
+                                  </span>
+                                )}
+                              </div>
+                              <div
+                                className="text-sm text-slate-300 prose prose-invert max-w-none"
+                                dangerouslySetInnerHTML={{
+                                  __html: markdownToHtml(sig.markdown),
+                                }}
+                              />
+                            </div>
+                            <div className="flex items-center gap-2 ml-4">
+                              {!sig.isDefault && (
+                                <button
+                                  onClick={() =>
+                                    handleSetDefaultSignature(sig.id)
+                                  }
+                                  className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                                  title="Set as default"
+                                >
+                                  Set Default
+                                </button>
+                              )}
+                              <button
+                                onClick={() => {
+                                  setEditingSignature(sig);
+                                  setSignatureFormData({
+                                    name: sig.name,
+                                    markdown: sig.markdown,
+                                    isDefault: sig.isDefault,
+                                  });
+                                  setSignatureViewMode("form");
+                                }}
+                                className="px-2 py-1 text-xs bg-white/10 text-white rounded hover:bg-white/20"
+                                title="Edit"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSignature(sig.id)}
+                                className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                                title="Delete"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
