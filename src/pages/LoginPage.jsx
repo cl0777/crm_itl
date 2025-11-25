@@ -318,7 +318,7 @@ function LoginPage() {
           {/* Footer */}
           <div className="mt-8 text-center">
             <p className="text-xs text-slate-400">
-              © 2024 CRM Admin Dashboard. All rights reserved.
+              © {new Date().getFullYear()} CRM ITL. All rights reserved.
             </p>
           </div>
         </div>
