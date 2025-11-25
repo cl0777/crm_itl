@@ -256,7 +256,7 @@ function CustomersPage() {
       "Address 2": customer.address2 || "",
       City: customer.city || customer.cityName || "",
       Country: customer.country || customer.countryName || "",
-      Email: customer.email | "",
+      Email: customer.email,
       "Primary Phone": customer.phone1 || "",
       "Secondary Phone": customer.phone2 || "",
       Status: customer.status || "",
