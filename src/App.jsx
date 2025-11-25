@@ -8,6 +8,7 @@ import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import CustomersPage from "./pages/CustomersPage";
 import MessagesPage from "./pages/MessagesPage";
+import MessageHistoryPage from "./pages/MessageHistoryPage";
 import ProfilePage from "./pages/ProfilePage";
 import UsersPage from "./pages/UsersPage";
 import DepartmentsPage from "./pages/DepartmentsPage";
@@ -47,6 +48,14 @@ function App() {
           }
         />
         <Route
+          path="/admin/crm/messages/history"
+          element={
+            <ProtectedRoute>
+              <MessageHistoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/crm/profile"
           element={
             <ProtectedRoute>
@@ -80,14 +89,20 @@ function App() {
         />
 
         {/* Default redirect */}
-        <Route path="/" element={<Navigate to="/admin/crm/dashboard" replace />} />
+        <Route
+          path="/"
+          element={<Navigate to="/admin/crm/dashboard" replace />}
+        />
         <Route
           path="/admin/crm"
           element={<Navigate to="/admin/crm/dashboard" replace />}
         />
 
         {/* Catch all route */}
-        <Route path="*" element={<Navigate to="/admin/crm/dashboard" replace />} />
+        <Route
+          path="*"
+          element={<Navigate to="/admin/crm/dashboard" replace />}
+        />
       </Routes>
     </Router>
   );
